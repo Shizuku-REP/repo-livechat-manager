@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepoLiveChat 統合マネージャー</title>
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --primary-color: #4f46e5;
+            --twitch-color: #9146ff;
+            --youtube-color: #ff0000;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --border-color: #e5e7eb;
+            --edit-color: #3b82f6;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        header h1 { margin: 0; font-size: 24px; }
+        header p { margin: 8px 0 0 0; opacity: 0.9; font-size: 13px; }
+        
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); }
+        .tab-btn {
+            padding: 12px 24px; background: none; border: none; font-size: 14px;
+            font-weight: bold; cursor: pointer; color: #4b5563; border-bottom: 3px solid transparent; transition: all 0.2s;
+        }
+        .tab-btn.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card { background-color: var(--card-bg); border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
+        .card h2 { margin-top: 0; font-size: 16px; border-left: 5px solid var(--primary-color); padding-left: 12px; margin-bottom: 20px; }
+        .card h2.twitch-hdr { border-left-color: var(--twitch-color); }
+        .card h2.youtube-hdr { border-left-color: var(--youtube-color); }
+        
+        .guide-box { background-color: #f9fafb; border-left: 4px solid #9ca3af; padding: 15px; margin-bottom: 20px; border-radius: 0 6px 6px 0; font-size: 13px; }
+        .guide-box ol { margin: 5px 0 0 0; padding-left: 20px; }
+        .guide-box li { margin-bottom: 8px; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 13px; }
+        .form-group input[type="text"], .form-group input[type="number"], .form-group select {
+            width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-size: 13.5px;
+        }
+        .form-row { display: flex; gap: 20px; }
+        .form-row .form-group { flex: 1; }
+        
+        .btn {
+            display: inline-block; padding: 10px 20px; background-color: var(--primary-color); color: white; border: none;
+            border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; font-size: 13.5px; text-align: center; text-decoration: none;
+        }
+        .btn:hover { filter: brightness(0.95); }
+        .btn-success { background-color: var(--success-color); }
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-secondary { background-color: #4b5563; }
+        .btn-edit { background-color: var(--edit-color); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid var(--border-color); padding: 12px; text-align: left; font-size: 13px; }
+        th { background-color: #f9fafb; font-weight: bold; }
+        
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; color: white; }
+        .badge-item { background-color: #f59e0b; }
+        .badge-enemy { background-color: #ef4444; }
+
+        .automation-box { background-color: #eef2ff; border: 2px dashed #818cf8; padding: 24px; border-radius: 8px; }
+        
+        .script-output {
+            background-color: #1e1e2e; color: #a6adc8; padding: 15px; border-radius: 6px; font-family: monospace;
+            font-size: 12px; white-space: pre-wrap; word-break: break-all; margin-top: 15px;
+            width: 100%; box-sizing: border-box; min-height: 120px; resize: vertical; border: 1px solid #4f46e5;
+        }
+        
+        .file-io-section { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; }
+        
+        tr.editing-row { background-color: #eff6ff; border: 2px solid var(--edit-color); }
+
+        .radio-group { display: flex; gap: 20px; margin-bottom: 15px; }
+        .radio-option { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .path-hint { font-size: 12px; color: #6b7280; margin-top: 4px; padding-left: 4px; border-left: 3px solid #d1d5db; }
+        
+        .execution-guide { background-color: #ffffff; border-left: 4px solid var(--success-color); padding: 15px; margin-top: 15px; border-radius: 6px; font-size: 13px; color: #374151; }
+        .execution-guide strong { color: #111827; }
+        .execution-guide ol { margin: 8px 0 0 0; padding-left: 24px; }
+        .execution-guide li { margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>RepoLiveChat 統合マネージャー</h1>
+        <p>Modの全自動導入ダウンロード、初期アカウントセットアップ、湧きルールの双方向編集・CSV一括管理までサポート</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('platform')">1. 初期セットアップ＆配信連携</button>
+        <button class="tab-btn" onclick="switchTab('commands')">2. 湧きコマンドルール管理</button>
+        <button class="tab-btn" onclick="switchTab('automation')">3. 自動配置コマンド生成</button>
+    </div>
+
+    <div id="tab-platform" class="tab-content active">
+        <div class="file-io-section">
+            <div>
+                <label style="font-weight: bold; display: block; font-size:13px; margin-bottom:5px;">📂 既存の設定ファイルを所持している場合は選択してください</label>
+                <input type="file" accept=".json" onchange="loadPlatformOrControlJson(this)">
+                <div style="font-size:11px; color:#555; margin-top:3px;">※「repo-livechat.platform.json」または「repo-livechat.control.json」を読み込めます。</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="youtube-hdr">YouTube 連携アプリケーション作成手順</h2>
+            <div class="guide-box">
+                <ol>
+                    <li><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> にアクセスし、<strong>新しいプロジェクト</strong>を作成します。</li>
+                    <li>APIライブラリで「<strong>YouTube Data API v3</strong>」を検索し、有効化します。</li>
+                    <li>「APIとサービス」→「OAuth 同意画面」でユーザータイプ「外部」で初期登録を行います。</li>
+                    <li>「認証情報」から「<strong>＋認証情報を作成</strong>」＞「<strong>OAuth クライアント ID</strong>」を選択します。</li>
+                    <li>アプリケーションの種類を「<strong>テレビと入力が限られたデバイス</strong>」に設定し作成します。</li>
+                    <li>発行された「<strong>クライアント ID</strong>」と「<strong>クライアント シークレット</strong>」を以下のフォームに入力します。</li>
+                    <li>最後に「OAuth 同意画面」に戻り、アプリを「<strong>アプリを公開</strong>」状態に切り替えます。</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="twitch-hdr">Twitch 連携アプリケーション作成手順</h2>
+            <div class="guide-box">
+                <ol>
+                    <li>アカウントの2段階認証を完了させた状態で <a href="https://dev.twitch.tv/console" target="_blank">Twitch開発者コンソール</a> にアクセスします。</li>
+                    <li>「アプリケーションの登録」を開き、名前を任意で入力、OAuthリダイレクトURLに <code>https://repolivechat/</code> を入力します。</li>
+                    <li>カテゴリーに「<strong>Game Integration</strong>」、クライアントタイプに「<strong>公開</strong>」を選択して登録します。</li>
+                    <li>登録したアプリの管理画面から「<strong>クライアント ID</strong>」を取得し、以下のフォームに入力します。</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>配信プラットフォーム設定</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>スロット1 (メイン配信サイト)</label>
+                    <select id="s1-platform" onchange="updatePlatformFields(1)">
+                        <option value="None">なし</option>
+                        <option value="Twitch">Twitch</option>
+                        <option value="YouTube">YouTube</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>スロット2 (同時配信用サイト)</label>
+                    <select id="s2-platform" onchange="updatePlatformFields(2)">
+                        <option value="None">なし</option>
+                        <option value="Twitch">Twitch</option>
+                        <option value="YouTube">YouTube</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="slot-fields-container">
+                <div id="fields-s1-Twitch" style="display:none;" class="form-group"><label>スロット1: Twitch クライアント ID</label><input type="text" id="s1-twClientId"></div>
+                <div id="fields-s1-YouTube" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group"><label>スロット1: YouTube クライアント ID</label><input type="text" id="s1-ytClientId"></div>
+                        <div class="form-group"><label>スロット1: YouTube クライアント シークレット</label><input type="text" id="s1-ytClientSecret"></div>
+                    </div>
+                    <div class="form-group"><label>スロット1: 優先ターゲットチャンネルUCID</label><input type="text" id="s1-ytPreferredUC"></div>
+                </div>
+                <div id="fields-s2-Twitch" style="display:none;" class="form-group"><label>スロット2: Twitch クライアント ID</label><input type="text" id="s2-twClientId"></div>
+                <div id="fields-s2-YouTube" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group"><label>スロット2: YouTube クライアント ID</label><input type="text" id="s2-ytClientId"></div>
+                        <div class="form-group"><label>スロット2: YouTube クライアント シークレット</label><input type="text" id="s2-ytClientSecret"></div>
+                    </div>
+                    <div class="form-group"><label>スロット2: 優先ターゲットチャンネルUCID</label><input type="text" id="s2-ytPreferredUC"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>タイマー・制限制御設定</h2>
+            <div class="form-row">
+                <div class="form-group"><label>全体最大実行数 / 秒</label><input type="number" id="ctrl-allPerSec" value="3"></div>
+                <div class="form-group"><label>重複コマンド無視ウィンドウ (秒)</label><input type="number" id="ctrl-dedupe" value="10"></div>
+            </div>
+            <div class="form-group">
+                <label>コメント無し無通信タイマー N1 (分)</label>
+                <input type="number" id="timer-n1" value="0">
+                <div style="font-size:12px; color:#666; margin-top:4px;">指定した時間、コメントが来なかった場合にランダムに敵がスポーンします（0で無効）。</div>
+            </div>
+            <div class="form-group">
+                <label>無通信時ループ継続タイマー N2 (分)</label>
+                <input type="number" id="timer-n2" value="0">
+                <div style="font-size:12px; color:#666; margin-top:4px;">N1によって敵がスポーンした後、さらに指定時間を過ぎると再度ランダムに敵がスポーンします。</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-commands" class="tab-content">
+        <div class="file-io-section">
+            <div style="flex: 1;">
+                <label style="font-weight: bold; display: block; font-size:13px; margin-bottom:5px;">① 既存の「repo-livechat.commands.json」を読み込む</label>
+                <input type="file" id="json-file-input" accept=".json" onchange="loadExistingJson(this)">
+            </div>
+            <div style="flex: 1; border-left: 1px solid #bbf7d0; padding-left: 20px;">
+                <label style="font-weight: bold; display: block; font-size:13px; margin-bottom:5px;">② CSV一括インポート変換</label>
+                <input type="file" id="csv-file-input" accept=".csv" onchange="loadCsvRules(this)">
+            </div>
+            <div style="flex: 0 0 auto; border-left: 1px solid #bbf7d0; padding-left: 20px;">
+                <button class="btn btn-secondary" onclick="downloadCsvTemplate()">📋 テンプレートCSVのDL</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 id="form-heading">新規ルールの個別追加</h2>
+            <div class="form-row">
+                <div class="form-group"><label>トリガーワード</label><input type="text" id="rule-name" placeholder="例: !spawn_zombie"></div>
+                <div class="form-group">
+                    <label>種類</label>
+                    <select id="rule-type" onchange="onTypeChange()">
+                        <option value="item">アイテム</option>
+                        <option value="enemy">敵・モンスター</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>オブジェクト</label>
+                    <select id="rule-select-object" onchange="onObjectSelect()"></select>
+                </div>
+                <div class="form-group">
+                    <label>個別クールダウン(秒)</label>
+                    <input type="number" id="rule-cooldown" value="15">
+                </div>
+            </div>
+            <input type="hidden" id="rule-id"><input type="hidden" id="rule-nameJa"><input type="hidden" id="rule-prefab">
+            <div style="display: flex; gap: 10px;">
+                <button id="rule-submit-btn" class="btn btn-success" onclick="addOrUpdateRule()">テーブルにレコードを追加</button>
+                <button id="rule-cancel-btn" class="btn btn-secondary" style="display: none;" onclick="cancelEdit()">編集をキャンセル</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>アクティブなルール一覧（編集・削除可能）</h2>
+            <table>
+                <thead>
+                    <tr><th>状態</th><th>トリガーワード</th><th>種類</th><th>ゲーム内オブジェクト名 (内部ID)</th><th>CD(秒)</th><th>操作</th></tr>
+                </thead>
+                <tbody id="rules-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-automation" class="tab-content">
+        <div class="card">
+            <h2>インストール先環境の指定</h2>
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio" name="env-type" value="thunderstore" onchange="updatePathHint()" checked>
+                    Thunderstore (R2Modman) を利用あり
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="env-type" value="steam" onchange="updatePathHint()">
+                    Steam標準 (手動導入) / 利用なし
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label>インストール先のフォルダパス</label>
+                <input type="text" id="install-path-input" placeholder="例: C:\Users\Name\AppData\Roaming\Thunderstore Mod Manager\DataFolder\REPO\profiles\配信プロファイル名">
+                <div id="path-hint-text" class="path-hint">
+                    ※Thunderstoreアプリ上で対象のプロファイルを選択し、「Settings」＞「Locations」＞「Browse profile folder」を開き、エクスプローラー上部のアドレスバーからパスをコピーして貼り付けてください。
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 25px 0;">
+
+            <h2>全自動配置用スクリプトの出力</h2>
+            <div class="form-group">
+                <label><input type="checkbox" id="mod-dl-toggle" checked> <strong>Mod本体（repo-livechat.dll）および必須ファイル（アイコン、テーブル定義）もインターネットから自動ダウンロードして配置する</strong></label>
+                <div style="font-size:12px; color:#555; margin-left:20px; margin-top:4px;">※チェックを入れると、配信者様が手動でModファイル群を配置する手間が完全に省けます。</div>
+            </div>
+
+            <div class="automation-box">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold; color: var(--primary-color);">💻 生成されたPowerShell用ワンライナー</span>
+                    <button class="btn btn-success" onclick="copyCommandToClipboard()">📋 コマンドをコピー</button>
+                </div>
+                <textarea class="script-output" id="script-area" readonly>※まだ生成されていません。パスを入力して下のボタンを押してください。</textarea>
+                
+                <!-- 追加: 実行手順のガイド -->
+                <div class="execution-guide">
+                    <strong>💡 コマンドの実行手順（Windows）</strong>
+                    <ol>
+                        <li>上の「<strong>📋 コマンドをコピー</strong>」ボタンを押して、生成されたスクリプトをコピーします。</li>
+                        <li>キーボードの <strong>Windowsキー</strong> を押し、<code>powershell</code> と入力して「<strong>Windows PowerShell</strong>」を起動します。</li>
+                        <li>開いた青い画面の上で <strong>右クリック</strong> してコマンドを貼り付け、<strong>Enterキー</strong> を押して実行します。</li>
+                        <li>画面に「✅ 同期・配置完了」と緑色で表示されれば、ファイルの配置はすべて完了です！</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px; text-align: center;">
+                <button class="btn" style="font-size:16px; padding:15px 40px;" onclick="generatePowerShellCommand()">対象フォルダへの配置コマンドを生成する</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 提供されたゲーム内敵・アイテムの定義テーブル完全同期データ
+    const gameDatabase = {
+        item: [
+            { id: "item-cart-cannon", prefab: "Item Cart Cannon", nameJa: "カートキャノン" },
+            { id: "item-cart-laser", prefab: "Item Cart Laser", nameJa: "カートレーザー" },
+            { id: "item-cart-medium", prefab: "Item Cart Medium", nameJa: "中カート" },
+            { id: "item-cart-small", prefab: "Item Cart Small", nameJa: "小カート" },
+            { id: "item-drone-battery", prefab: "Item Drone Battery", nameJa: "リチャージドローン" },
+            { id: "item-drone-feather", prefab: "Item Drone Feather", nameJa: "フェザードローン" },
+            { id: "item-drone-indestructible", prefab: "Item Drone Indestructible", nameJa: "不滅ドローン" },
+            { id: "item-drone-zero-gravity", prefab: "Item Drone Zero Gravity", nameJa: "ゼログラドローン" },
+            { id: "item-duck-bucket", prefab: "Item Duck Bucket", nameJa: "ダッグバケット" },
+            { id: "item-extraction-tracker", prefab: "Item Extraction Tracker", nameJa: "トラッカー(エリア)" },
+            { id: "item-grenade-duct-taped", prefab: "Item Grenade Duct Taped", nameJa: "3グレネード" },
+            { id: "item-grenade-human", prefab: "Item Grenade Human", nameJa: "ヒューマングレネード" },
+            { id: "item-grenade-shockwave", prefab: "Item Grenade Shockwave", nameJa: "ショックウェーブグレネード" },
+            { id: "item-grenade-stun", prefab: "Item Grenade Stun", nameJa: "スタングレネード" },
+            { id: "item-gun-handgun", prefab: "Item Gun Handgun", nameJa: "ガン" },
+            { id: "item-gun-laser", prefab: "Item Gun Laser", nameJa: "フォトンブラスター" },
+            { id: "item-gun-shockwave", prefab: "Item Gun Shockwave", nameJa: "パルスピストル" },
+            { id: "item-gun-shotgun", prefab: "Item Gun Shotgun", nameJa: "ショットガン" },
+            { id: "item-gun-stun", prefab: "Item Gun Stun", nameJa: "ボルトザップ" },
+            { id: "item-gun-tranq", prefab: "Item Gun Tranq", nameJa: "トランクガン" },
+            { id: "item-health-pack-large", prefab: "Item Health Pack Large", nameJa: "大回復" },
+            { id: "item-health-pack-medium", prefab: "Item Health Pack Medium", nameJa: "中回復" },
+            { id: "item-health-pack-small", prefab: "Item Health Pack Small", nameJa: "小回復" },
+            { id: "item-melee-baseball-bat", prefab: "Item Melee Baseball Bat", nameJa: "バット" },
+            { id: "item-melee-frying-pan", prefab: "Item Melee Frying Pan", nameJa: "フライパン" },
+            { id: "item-melee-inflatable-hammer", prefab: "Item Melee Inflatable Hammer", nameJa: "ピコピコハンマー" },
+            { id: "item-melee-sledge-hammer", prefab: "Item Melee Sledge Hammer", nameJa: "スレッジハンマー" },
+            { id: "item-melee-stun-baton", prefab: "Item Melee Stun Baton", nameJa: "プロッドザップ" },
+            { id: "item-melee-sword", prefab: "Item Melee Sword", nameJa: "剣" },
+            { id: "item-mine-explosive", prefab: "Item Mine Explosive", nameJa: "地雷" },
+            { id: "item-mine-shockwave", prefab: "Item Mine Shockwave", nameJa: "ショックウェーブ" },
+            { id: "item-mine-stun", prefab: "Item Mine Stun", nameJa: "トラップザップ" },
+            { id: "item-orb-zero-gravity", prefab: "Item Orb Zero Gravity", nameJa: "ゼログラオーブ" },
+            { id: "item-phase-bridge", prefab: "Item Phase Bridge", nameJa: "橋" },
+            { id: "item-rubber-duck", prefab: "Item Rubber Duck", nameJa: "ラバーダック" },
+            { id: "item-upgrade-death-head-battery", prefab: "Item Upgrade Death Head Battery", nameJa: "死亡後バッテリー アップグレード" },
+            { id: "item-upgrade-map-player-count", prefab: "Item Upgrade Map Player Count", nameJa: "プレイヤーカウント アップグレード" },
+            { id: "item-upgrade-player-crouch-rest", prefab: "Item Upgrade Player Crouch Rest", nameJa: "スニークスタミナ回復 アップグレード" },
+            { id: "item-upgrade-player-energy", prefab: "Item Upgrade Player Energy", nameJa: "スタミナ アップグレード" },
+            { id: "item-upgrade-player-extra-jump", prefab: "Item Upgrade Player Extra Jump", nameJa: "エクストラジャンプ アップグレード" },
+            { id: "item-upgrade-player-grab-range", prefab: "Item Upgrade Player Grab Range", nameJa: "レンジ アップグレード" },
+            { id: "item-upgrade-player-grab-strength", prefab: "Item Upgrade Player Grab Strength", nameJa: "ストレングス アップグレード" },
+            { id: "item-upgrade-player-health", prefab: "Item Upgrade Player Health", nameJa: "ヘルス アップグレード" },
+            { id: "item-upgrade-player-sprint-speed", prefab: "Item Upgrade Player Sprint Speed", nameJa: "スピード アップグレード" },
+            { id: "item-upgrade-player-tumble-climb", prefab: "Item Upgrade Player Tumble Climb", nameJa: "タンブルクライム アップグレード" },
+            { id: "item-upgrade-player-tumble-launch", prefab: "Item Upgrade Player Tumble Launch", nameJa: "タンブルランチアップグレード" },
+            { id: "item-upgrade-player-tumble-wings", prefab: "Item Upgrade Player Tumble Wings", nameJa: "タンブルウィングアップグレード" },
+            { id: "item-valuable-tracker", prefab: "Item Valuable Tracker", nameJa: "貴重品トラッカー" },
+            { id: "item-reviveItem", prefab: "Item ReviveItem", nameJa: "除細動器" },
+            { id: "item-staff-torque", prefab: "Item Staff Torque", nameJa: "ロールスタッフ" },
+            { id: "item-staff-void", prefab: "Item Staff Void", nameJa: "ヴォイドスタッフ" },
+            { id: "item-staff-zero-gravity", prefab: "Item Staff Zero Gravity", nameJa: "ゼログラスタッフ" },
+            { id: "item-vehicle-semiscooter", prefab: "Item Vehicle Semiscooter", nameJa: "スクーター" },
+            { id: "item-walkietalkiebox", prefab: "Item WalkieTalkieBox", nameJa: "通信機器" }
+        ],
+        enemy: [
+            { id: "enemy---animal", prefab: "Enemy - Animal", nameJa: "アニマル" },
+            { id: "enemy---beamer", prefab: "Enemy - Beamer", nameJa: "クラウン" },
+            { id: "enemy---bowtie", prefab: "Enemy - Bowtie", nameJa: "ボウタイ" },
+            { id: "enemy---ceiling-eye", prefab: "Enemy - Ceiling Eye", nameJa: "ピーパー" },
+            { id: "enemy---duck", prefab: "Enemy - Duck", nameJa: "エイペックスプレデター" },
+            { id: "enemy---floater", prefab: "Enemy - Floater", nameJa: "メンタリスト" },
+            { id: "enemy---head", prefab: "Enemy - Head", nameJa: "ヘッドマン" },
+            { id: "enemy---hidden", prefab: "Enemy - Hidden", nameJa: "ヒドゥン" },
+            { id: "enemy---hunter", prefab: "Enemy - Hunter", nameJa: "ハンツマン" },
+            { id: "enemy---robe", prefab: "Enemy - Robe", nameJa: "ローブ" },
+            { id: "enemy---runner", prefab: "Enemy - Runner", nameJa: "リーパー" },
+            { id: "enemy---slow-mouth", prefab: "Enemy - Slow Mouth", nameJa: "スピュワー" },
+            { id: "enemy---slow-walker", prefab: "Enemy - Slow Walker", nameJa: "トラッジ" },
+            { id: "enemy---thin-man", prefab: "Enemy - Thin Man", nameJa: "シャドーチャイルド" },
+            { id: "enemy---tumbler", prefab: "Enemy - Tumbler", nameJa: "シェフ" },
+            { id: "enemy---upscream", prefab: "Enemy - Upscream", nameJa: "アップスクリーム" },
+            { id: "enemy---valuable-thrower", prefab: "Enemy - Valuable Thrower", nameJa: "ラグラット" },
+            { id: "enemy-birthday-boy", prefab: "Enemy - Birthday boy", nameJa: "バースデーボーイ" },
+            { id: "enemy-bomb-thrower", prefab: "Enemy - Bomb Thrower", nameJa: "クリーンアップクルー" },
+            { id: "enemy-elsa", prefab: "Enemy - Elsa", nameJa: "エルサ" },
+            { id: "enemy-head-grabber", prefab: "Enemy - Head Grabber", nameJa: "ヘッドグラブ" },
+            { id: "enemy-heart-hugger", prefab: "Enemy - Heart Hugger", nameJa: "ハートハガー" },
+            { id: "enemy-oogly", prefab: "Enemy - Oogly", nameJa: "ウーグリー" },
+            { id: "enemy-shadow", prefab: "Enemy - Shadow", nameJa: "ルーム" },
+            { id: "enemy-spinny", prefab: "Enemy - Spinny", nameJa: "ギャンビット" },
+            { id: "enemy-tick", prefab: "Enemy - Tick", nameJa: "チック" },
+            { id: "enemy-tricycle", prefab: "Enemy - Tricycle", nameJa: "ベラ" }
+        ]
+    };
+
+    let rulesList = [];
+    let editIndex = -1;
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+
+    function updatePlatformFields(slotNum) {
+        const platform = document.getElementById(`s${slotNum}-platform`).value;
+        document.getElementById(`fields-s${slotNum}-Twitch`).style.display = platform === 'Twitch' ? 'block' : 'none';
+        document.getElementById(`fields-s${slotNum}-YouTube`).style.display = platform === 'YouTube' ? 'block' : 'none';
+    }
+
+    function updatePathHint() {
+        const envType = document.querySelector('input[name="env-type"]:checked').value;
+        const hintEl = document.getElementById('path-hint-text');
+        const inputEl = document.getElementById('install-path-input');
+        
+        if (envType === 'thunderstore') {
+            inputEl.placeholder = "例: C:\\Users\\Name\\AppData\\Roaming\\Thunderstore Mod Manager\\DataFolder\\REPO\\profiles\\配信プロファイル名";
+            hintEl.innerHTML = "※Thunderstoreアプリ上で対象のプロファイルを選択し、「Settings」＞「Locations」＞「Browse profile folder」を開き、エクスプローラー上部のアドレスバーからパスをコピーして貼り付けてください。";
+        } else {
+            inputEl.placeholder = "例: C:\\Program Files (x86)\\Steam\\steamapps\\common\\REPO";
+            hintEl.innerHTML = "※SteamのライブラリからREPOを右クリックし、「管理」＞「ローカルファイルを閲覧」を開き、エクスプローラー上部のアドレスバーからパスをコピーして貼り付けてください。";
+        }
+    }
+
+    function onTypeChange() {
+        const type = document.getElementById('rule-type').value;
+        const selectNode = document.getElementById('rule-select-object');
+        selectNode.innerHTML = '';
+        gameDatabase[type].forEach(obj => {
+            let opt = document.createElement('option');
+            opt.value = obj.id; opt.innerText = `${obj.nameJa} (${obj.id})`;
+            selectNode.appendChild(opt);
+        });
+        onObjectSelect();
+    }
+
+    function onObjectSelect() {
+        const type = document.getElementById('rule-type').value;
+        const selId = document.getElementById('rule-select-object').value;
+        const found = gameDatabase[type].find(o => o.id === selId);
+        if(found) {
+            document.getElementById('rule-id').value = found.id;
+            document.getElementById('rule-nameJa').value = found.nameJa;
+            document.getElementById('rule-prefab').value = found.prefab;
+        }
+    }
+
+    function addOrUpdateRule() {
+        const name = document.getElementById('rule-name').value.trim();
+        const id = document.getElementById('rule-id').value;
+        const type = document.getElementById('rule-type').value;
+        const nameJa = document.getElementById('rule-nameJa').value;
+        const prefab = document.getElementById('rule-prefab').value;
+        const cooldownSec = parseInt(document.getElementById('rule-cooldown').value) || 15;
+        
+        if(!name) return alert('トリガーコメントを入力してください。');
+        
+        if(editIndex === -1 && rulesList.some(r => r.name === name)) {
+            return alert('登録済みの重複トリガーです。');
+        } else if (editIndex > -1 && rulesList.some((r, idx) => r.name === name && idx !== editIndex)) {
+            return alert('他のレコードで既に使用されているトリガーワードです。');
+        }
+        
+        const targetData = { 
+            id, name, nameJa, type, cooldownSec, enabled: true, prefab, 
+            args: { prefabFullPath: (type==='enemy'?'Enemies/':'Items/') + prefab } 
+        };
+
+        if(editIndex > -1) {
+            rulesList[editIndex] = targetData;
+            editIndex = -1;
+            alert('レコードを更新しました。');
+        } else {
+            rulesList.push(targetData);
+        }
+        
+        resetForm();
+        renderRules();
+    }
+
+    function startEdit(idx) {
+        editIndex = idx;
+        const data = rulesList[idx];
+        
+        document.getElementById('form-heading').innerText = "登録済みルールの編集・変更";
+        document.getElementById('rule-name').value = data.name;
+        document.getElementById('rule-type').value = data.type;
+        
+        onTypeChange();
+        document.getElementById('rule-select-object').value = data.id;
+        onObjectSelect();
+        
+        document.getElementById('rule-cooldown').value = data.cooldownSec;
+        
+        document.getElementById('rule-submit-btn').innerText = "レコードを更新する (上書き)";
+        document.getElementById('rule-submit-btn').className = "btn btn-edit";
+        document.getElementById('rule-cancel-btn').style.display = "inline-block";
+        
+        renderRules();
+    }
+
+    function cancelEdit() {
+        editIndex = -1;
+        resetForm();
+        renderRules();
+    }
+
+    function resetForm() {
+        document.getElementById('form-heading').innerText = "新規ルールの個別追加";
+        document.getElementById('rule-name').value = '';
+        document.getElementById('rule-cooldown').value = '15';
+        document.getElementById('rule-submit-btn').innerText = "テーブルにレコードを追加";
+        document.getElementById('rule-submit-btn').className = "btn btn-success";
+        document.getElementById('rule-cancel-btn').style.display = "none";
+    }
+
+    function renderRules() {
+        const tbody = document.getElementById('rules-tbody'); tbody.innerHTML = '';
+        rulesList.forEach((r, idx) => {
+            const isEditing = (idx === editIndex);
+            tbody.innerHTML += `<tr class="${isEditing ? 'editing-row' : ''}">
+                <td><span class="badge badge-active">${isEditing ? '編集対象' : '有効'}</span></td>
+                <td><strong>${escapeHtml(r.name)}</strong></td>
+                <td><span class="badge ${r.type==='enemy'?'badge-enemy':'badge-item'}">${r.type==='enemy'?'敵':'アイテム'}</span></td>
+                <td>${escapeHtml(r.nameJa)} (${escapeHtml(r.id)})</td>
+                <td>${r.cooldownSec}秒</td>
+                <td>
+                    <button class="btn btn-edit" style="padding:4px 10px; font-size:11px;" onclick="startEdit(${idx})">編集</button>
+                    <button class="btn btn-danger" style="padding:4px 10px; font-size:11px;" onclick="if(confirm('削除しますか？')){rulesList.splice(${idx},1); if(editIndex===${idx})cancelEdit(); renderRules();}">削除</button>
+                </td>
+            </tr>`;
+        });
+    }
+
+    function loadPlatformOrControlJson(e) {
+        const file = e.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const parsed = JSON.parse(evt.target.result);
+                if(parsed.Slot1) {
+                    document.getElementById('s1-platform').value = parsed.Slot1.Platform || "None";
+                    if(parsed.Slot1.twClientId) document.getElementById('s1-twClientId').value = parsed.Slot1.twClientId;
+                    if(parsed.Slot1.ytClientId) document.getElementById('s1-ytClientId').value = parsed.Slot1.ytClientId;
+                    if(parsed.Slot1.ytClientSecret) document.getElementById('s1-ytClientSecret').value = parsed.Slot1.ytClientSecret;
+                    if(parsed.Slot1.ytPreferredChannelUC) document.getElementById('s1-ytPreferredUC').value = parsed.Slot1.ytPreferredChannelUC;
+                    updatePlatformFields(1);
+                    if(parsed.Slot2) {
+                        document.getElementById('s2-platform').value = parsed.Slot2.Platform || "None";
+                        if(parsed.Slot2.twClientId) document.getElementById('s2-twClientId').value = parsed.Slot2.twClientId;
+                        if(parsed.Slot2.ytClientId) document.getElementById('s2-ytClientId').value = parsed.Slot2.ytClientId;
+                        if(parsed.Slot2.ytClientSecret) document.getElementById('s2-ytClientSecret').value = parsed.Slot2.ytClientSecret;
+                        if(parsed.Slot2.ytPreferredChannelUC) document.getElementById('s2-ytPreferredChannelUC').value = parsed.Slot2.ytPreferredChannelUC;
+                        updatePlatformFields(2);
+                    }
+                    alert("✅ platform.jsonを正常読込しました。");
+                } else if(parsed.rate) {
+                    document.getElementById('ctrl-allPerSec').value = parsed.rate.allPerSec || 3;
+                    document.getElementById('ctrl-dedupe').value = parsed.dedupeWindowSec || 10;
+                    document.getElementById('timer-n1').value = parsed.NoCommentSpawnMinutes1 || 0;
+                    document.getElementById('timer-n2').value = parsed.NoCommentSpawnMinutes2 || 0;
+                    alert("✅ control.jsonを正常読込しました。");
+                }
+            } catch(err) { alert("JSON読み込み失敗: 形式が不正です。"); }
+        };
+        reader.readAsText(file);
+    }
+
+    function loadExistingJson(e) {
+        const file = e.files[0]; if(!file || file.name !== "repo-livechat.commands.json") return alert("「repo-livechat.commands.json」のみ指定可能です。");
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const parsed = JSON.parse(evt.target.result);
+                if(!parsed || !Array.isArray(parsed.rules)) throw new Error();
+                rulesList = parsed.rules; renderRules(); alert(`✅ ${rulesList.length}件のルールを復元しました。`);
+            } catch(err) { alert("commands.jsonのロードエラー。"); }
+        };
+        reader.readAsText(file);
+    }
+
+    function downloadCsvTemplate() {
+        let csvContent = "\uFEFF" + "コメント,区分,ゲーム内オブジェクト名\n";
+        gameDatabase.item.forEach(i => { csvContent += `,アイテム,${i.nameJa}\n`; });
+        gameDatabase.enemy.forEach(e => { csvContent += `,敵,${e.nameJa}\n`; });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", "repo-livechat_template.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function loadCsvRules(e) {
+        const file = e.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const lines = evt.target.result.split(/\r?\n/);
+            const header = lines[0].split(',').map(h=>h.trim());
+            if(header[0]!=="コメント" || header[1]!=="区分" || header[2]!=="ゲーム内オブジェクト名") return alert("CSV構造が違います。");
+            
+            let count = 0;
+            for(let i=1; i<lines.length; i++) {
+                if(!lines[i].trim()) continue;
+                const cols = lines[i].split(',').map(c=>c.trim());
+                if(!cols[0] || cols.length < 3) continue;
+                const type = (cols[1]==="敵"||cols[1]==="enemy") ? "enemy" : "item";
+                const dbObj = gameDatabase[type].find(o => o.nameJa === cols[2] || o.id === cols[2]);
+                if(dbObj && !rulesList.some(r=>r.name===cols[0])) {
+                    rulesList.push({ id: dbObj.id, name: cols[0], nameJa: dbObj.nameJa, type, cooldownSec: 15, enabled: true, prefab: dbObj.prefab, args: { prefabFullPath: (type==='enemy'?'Enemies/':'Items/') + dbObj.prefab } });
+                    count++;
+                }
+            }
+            renderRules(); alert(`CSVから新たに ${count} 件をインポートしました。`);
+        };
+        reader.readAsText(file, "UTF-8");
+    }
+
+    function generatePowerShellCommand() {
+        const targetPathRaw = document.getElementById('install-path-input').value.trim();
+        if (!targetPathRaw) {
+            alert("エラー: インストール先のフォルダパスが入力されていません。\nエクスプローラーから対象のパスをコピーして貼り付けてください。");
+            return;
+        }
+
+        const pObj = {
+            Slot1: {
+                Enabled: document.getElementById('s1-platform').value !== 'None', Platform: document.getElementById('s1-platform').value,
+                twitchChannel: "", twitchOAuthToken: "", twClientId: document.getElementById('s1-twClientId').value ? document.getElementById('s1-twClientId').value.trim() : "",
+                ytClientId: document.getElementById('s1-ytClientId').value ? document.getElementById('s1-ytClientId').value.trim() : "", ytClientSecret: document.getElementById('s1-ytClientSecret').value ? document.getElementById('s1-ytClientSecret').value.trim() : "",
+                ytAccessToken: "", ytRefreshToken: "", ytLiveChatId: "", ytPreferredChannelUC: document.getElementById('s1-ytPreferredUC').value ? document.getElementById('s1-ytPreferredUC').value.trim() : ""
+            },
+            Slot2: {
+                Enabled: document.getElementById('s2-platform').value !== 'None', Platform: document.getElementById('s2-platform').value,
+                twitchChannel: "", twitchOAuthToken: "", twClientId: document.getElementById('s2-twClientId').value ? document.getElementById('s2-twClientId').value.trim() : "",
+                ytClientId: document.getElementById('s2-ytClientId').value ? document.getElementById('s2-ytClientId').value.trim() : "", ytClientSecret: document.getElementById('s2-ytClientSecret').value ? document.getElementById('s2-ytClientSecret').value.trim() : "",
+                ytAccessToken: "", ytRefreshToken: "", ytLiveChatId: "", ytPreferredChannelUC: document.getElementById('s2-ytPreferredUC').value ? document.getElementById('s2-ytPreferredUC').value.trim() : ""
+            }
+        };
+        const cObj = {
+            rate: { allPerSec: parseInt(document.getElementById('ctrl-allPerSec').value)||3, perViewerPerSec: 0 },
+            dedupeWindowSec: parseInt(document.getElementById('ctrl-dedupe').value)||10,
+            allowInMenu: true, allowInGameOnly: false, logLevel: "INFO",
+            NoCommentSpawnMinutes1: parseInt(document.getElementById('timer-n1').value)||0, NoCommentSpawnMinutes2: parseInt(document.getElementById('timer-n2').value)||0
+        };
+        const rObj = { rules: rulesList };
+
+        const pJson = JSON.stringify(pObj).replace(/"/g, '`"');
+        const cJson = JSON.stringify(cObj).replace(/"/g, '`"');
+        const rJson = JSON.stringify(rObj).replace(/"/g, '`"');
+
+        const dlEnabled = document.getElementById('mod-dl-toggle').checked;
+        
+        const modUrl = "https://github.com/Shizuku-REP/REPOLiveChat/blob/b5aa463e46bf0eaf0060ceeae0ab1eeaf76cdad1/RepoLiveChat.dll?raw=true";
+        const iconUrl = "https://github.com/Shizuku-REP/REPOLiveChat/blob/b5381ca2bdf6bae9a2f45b9cfeaadac266029287/icon.png?raw=true";
+        const enemiesUrl = "https://github.com/Shizuku-REP/REPOLiveChat/blob/b5381ca2bdf6bae9a2f45b9cfeaadac266029287/repo-livechat.enemies.table.json?raw=true";
+        const itemsUrl = "https://github.com/Shizuku-REP/REPOLiveChat/blob/b5381ca2bdf6bae9a2f45b9cfeaadac266029287/repo-livechat.items.table.json?raw=true";
+
+        let psScript = `$targetPath = "${targetPathRaw}"; ` +
+            `if (!(Test-Path $targetPath)) { Write-Host '⚠️ 指定されたパスが存在しません。' -ForegroundColor Yellow; return }; ` +
+            `$bepInExPath = Join-Path $targetPath 'BepInEx'; ` +
+            `$cfgDir = Join-Path $bepInExPath 'config\\repo-livechat'; $plgDir = Join-Path $bepInExPath 'plugins'; ` +
+            `if (!(Test-Path $cfgDir)) { New-Item -ItemType Directory -Path $cfgDir -Force | Out-Null }; ` +
+            `if (!(Test-Path $plgDir)) { New-Item -ItemType Directory -Path $plgDir -Force | Out-Null }; ` +
+            `Set-Content -Path (Join-Path $cfgDir 'repo-livechat.platform.json') -Value "${pJson}" -Encoding UTF8; ` +
+            `Set-Content -Path (Join-Path $cfgDir 'repo-livechat.control.json') -Value "${cJson}" -Encoding UTF8; ` +
+            `Set-Content -Path (Join-Path $cfgDir 'repo-livechat.commands.json') -Value "${rJson}" -Encoding UTF8; `;
+            
+        if (dlEnabled) {
+            psScript += `Write-Host '📥 Mod本体および必須ファイルを自動ダウンロード中...'; ` +
+                        `Invoke-WebRequest -Uri "${modUrl}" -OutFile (Join-Path $plgDir 'repo-livechat.dll') -TimeoutSec 30 -ErrorAction SilentlyContinue; ` +
+                        `Invoke-WebRequest -Uri "${iconUrl}" -OutFile (Join-Path $cfgDir 'icon.png') -TimeoutSec 30 -ErrorAction SilentlyContinue; ` +
+                        `Invoke-WebRequest -Uri "${enemiesUrl}" -OutFile (Join-Path $cfgDir 'repo-livechat.enemies.table.json') -TimeoutSec 30 -ErrorAction SilentlyContinue; ` +
+                        `Invoke-WebRequest -Uri "${itemsUrl}" -OutFile (Join-Path $cfgDir 'repo-livechat.items.table.json') -TimeoutSec 30 -ErrorAction SilentlyContinue; `;
+        }
+
+        psScript += `Write-Host \\"✅ 同期・配置完了: $targetPath\\" -ForegroundColor Green;`;
+
+        document.getElementById('script-area').value = psScript;
+    }
+
+    function copyCommandToClipboard() {
+        const txt = document.getElementById('script-area').value;
+        if(txt.includes("※まだ生成されていません")) return alert("先にコマンドを生成してください。");
+        navigator.clipboard.writeText(txt).then(() => { alert("📋 スクリプトをクリップボードへ完全コピーしました。"); });
+    }
+
+    function escapeHtml(s) {
+        return typeof s !== 'string' ? s : s.replace(/[&'`"<>]/g, m => ({ '&': '&amp;', "'": '&#x27;', '`': '&#x60;', '"': '&quot;', '<': '&lt;', '>': '&gt;' }[m]));
+    }
+
+    onTypeChange();
+    updatePathHint(); 
+</script>
+</body>
+</html>
